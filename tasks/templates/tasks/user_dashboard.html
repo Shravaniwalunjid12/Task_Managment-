@@ -1,0 +1,171 @@
+{% extends 'tasks/base.html' %}
+{% block title %}My Dashboard - TaskFlow{% endblock %}
+{% block page_title %}My Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(16,185,129,0.14), rgba(52,211,153,0.06));
+  border: 1px solid rgba(16,185,129,0.25);
+  border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+.welcome-text h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+.welcome-text p  { color: #94a3b8; font-size: 0.85rem; margin: 0; }
+.role-badge { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 10px; padding: 8px 18px; color: #34d399; font-size: 0.82rem; font-weight: 700; }
+.task-row { cursor: pointer; } .task-row:hover td { background: rgba(99,102,241,0.05); }
+.deadline-card { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; transition: border-color 0.15s; display: flex; align-items: center; gap: 12px; }
+.deadline-card:hover { border-color: #6366f1; }
+.deadline-icon { width: 34px; height: 34px; border-radius: 8px; background: rgba(99,102,241,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tip-card { background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.15); border-radius: 12px; padding: 14px 16px; margin-top: 4px; font-size: 0.82rem; color: #94a3b8; line-height: 1.6; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Welcome -->
+<div class="welcome-banner">
+  <div class="welcome-text">
+    <h2>👋 Welcome, {{ request.user.first_name|default:request.user.username }}!</h2>
+    <p>Here are your assigned tasks and personal progress for today.</p>
+  </div>
+  <div class="role-badge"><i class="fas fa-user me-2"></i>User</div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);"><i class="fas fa-list-check" style="color:#818cf8;"></i></div><div><div class="stat-value">{{ total }}</div><div class="stat-label">My Tasks</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15);"><i class="fas fa-spinner" style="color:#60a5fa;"></i></div><div><div class="stat-value">{{ in_progress }}</div><div class="stat-label">In Progress</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);"><i class="fas fa-circle-check" style="color:#34d399;"></i></div><div><div class="stat-value">{{ completed }}</div><div class="stat-label">Completed</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fas fa-triangle-exclamation" style="color:#f87171;"></i></div><div><div class="stat-value">{{ overdue }}</div><div class="stat-label">Overdue</div></div></div></div>
+</div>
+
+<!-- Progress Bar -->
+{% if total > 0 %}
+<div class="card mb-4"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span style="font-size:0.85rem;font-weight:600;">My Progress</span>
+    <span style="font-size:0.85rem;color:#94a3b8;">{{ completion_rate }}% complete &mdash; {{ completed }}/{{ total }} tasks done</span>
+  </div>
+  <div class="progress"><div class="progress-bar" id="user-bar" data-c="{{ completed }}" data-t="{{ total }}"></div></div>
+</div></div>
+{% endif %}
+
+<!-- Main Grid -->
+<div class="row g-4">
+
+  <!-- My Tasks -->
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-check me-2" style="color:#818cf8;"></i>My Assigned Tasks</span>
+        <a href="{% url 'task_list' %}" class="btn btn-sm btn-outline-light">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_tasks %}
+        <div class="table-responsive"><table class="table mb-0">
+          <thead><tr><th>Title</th><th>Priority</th><th>Status</th><th>Deadline</th></tr></thead>
+          <tbody>
+            {% for task in recent_tasks %}
+            <tr class="task-row" data-href="{% url 'task_detail' task.pk %}" style="cursor:pointer;">
+              <td>
+                <div style="font-weight:500;">{{ task.title|truncatechars:40 }}</div>
+                {% if task.is_overdue %}<small class="overdue-indicator"><i class="fas fa-circle-exclamation me-1"></i>Overdue</small>{% endif %}
+              </td>
+              <td><span class="badge-status badge-{{ task.priority }}">{{ task.get_priority_display }}</span></td>
+              <td><span class="badge-status badge-{{ task.status }}">{{ task.get_status_display }}</span></td>
+              <td style="font-size:0.8rem;color:#94a3b8;">{% if task.deadline %}{{ task.deadline|date:"M d, Y" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-2x mb-3" style="color:#334155;"></i>
+          <p style="color:#64748b;font-size:0.875rem;">No tasks assigned to you yet.</p>
+          <p style="color:#475569;font-size:0.8rem;">Your admin will assign tasks to you soon.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="col-lg-4">
+
+    <!-- Upcoming Deadlines -->
+    <div class="card mb-4">
+      <div class="card-header"><i class="fas fa-calendar-days me-2" style="color:#818cf8;"></i>Upcoming Deadlines</div>
+      <div class="card-body">
+        {% for task in upcoming %}
+        <div class="deadline-card" data-href="{% url 'task_detail' task.pk %}">
+          <div class="deadline-icon"><i class="fas fa-calendar" style="color:#818cf8;"></i></div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ task.title|truncatechars:26 }}</div>
+            <div style="font-size:0.72rem;color:#64748b;">Due {{ task.deadline|date:"M d, Y" }}</div>
+          </div>
+          <span class="badge-status badge-{{ task.priority }}" style="flex-shrink:0;">{{ task.get_priority_display }}</span>
+        </div>
+        {% empty %}
+        <p style="color:#64748b;font-size:0.85rem;text-align:center;padding:10px 0;">No upcoming deadlines 🎉</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- My Activity -->
+    <div class="card mb-4">
+      <div class="card-header"><i class="fas fa-clock-rotate-left me-2" style="color:#818cf8;"></i>My Activity</div>
+      <div class="card-body" style="max-height:230px;overflow-y:auto;">
+        {% for log in recent_logs %}
+        <div class="audit-item">
+          <div class="audit-dot"></div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:500;">{{ log.task.title|truncatechars:28 }}</div>
+            <div style="font-size:0.74rem;color:#94a3b8;">{{ log.get_action_display }}</div>
+            <div style="font-size:0.7rem;color:#475569;">{{ log.timestamp|timesince }} ago</div>
+          </div>
+        </div>
+        {% empty %}
+        <p style="color:#64748b;font-size:0.85rem;text-align:center;padding:16px 0;">No activity yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="tip-card">
+      <div style="font-size:0.8rem;font-weight:700;color:#818cf8;margin-bottom:6px;"><i class="fas fa-lightbulb me-2"></i>Tips</div>
+      <div>• Click any task row to open its details</div>
+      <div>• Update task status directly from the task page</div>
+      <div>• Add comments to communicate progress</div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Overall progress bar
+  var b = document.getElementById('user-bar');
+  if (b) {
+    var c = parseInt(b.getAttribute('data-c')) || 0;
+    var t = parseInt(b.getAttribute('data-t')) || 0;
+    if (t > 0) b.style.width = Math.round(c / t * 100) + '%';
+  }
+
+  // Clickable task rows
+  document.querySelectorAll('.task-row[data-href]').forEach(function(row) {
+    row.addEventListener('click', function() {
+      window.location = row.getAttribute('data-href');
+    });
+  });
+
+  // Clickable deadline cards
+  document.querySelectorAll('.deadline-card[data-href]').forEach(function(card) {
+    card.addEventListener('click', function() {
+      window.location = card.getAttribute('data-href');
+    });
+  });
+</script>
+{% endblock %}

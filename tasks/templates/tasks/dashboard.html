@@ -1,0 +1,218 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Dashboard - TaskFlow{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.task-row { cursor: pointer; }
+.progress-wrap { display: flex; align-items: center; gap: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(99,102,241,0.15);">
+        <i class="fas fa-list-check" style="color:#818cf8;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ total }}</div>
+        <div class="stat-label">Total Tasks</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(100,116,139,0.15);">
+        <i class="fas fa-clock" style="color:#94a3b8;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ pending }}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(59,130,246,0.15);">
+        <i class="fas fa-spinner" style="color:#60a5fa;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ in_progress }}</div>
+        <div class="stat-label">In Progress</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(16,185,129,0.15);">
+        <i class="fas fa-circle-check" style="color:#34d399;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ completed }}</div>
+        <div class="stat-label">Completed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(239,68,68,0.15);">
+        <i class="fas fa-triangle-exclamation" style="color:#f87171;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ overdue }}</div>
+        <div class="stat-label">Overdue</div>
+      </div>
+    </div>
+  </div>
+  {% if total_users is not None %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(245,158,11,0.15);">
+        <i class="fas fa-users" style="color:#fbbf24;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ total_users }}</div>
+        <div class="stat-label">Total Users</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-check me-2" style="color:#818cf8;"></i>Recent Tasks</span>
+        <a href="{% url 'task_list' %}" class="btn btn-sm btn-outline-light">View All</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_tasks %}
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Assigned</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Deadline</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for task in recent_tasks %}
+              <tr class="task-row" data-href="{% url 'task_detail' task.pk %}">
+                <td>
+                  <div style="font-weight:500;">{{ task.title|truncatechars:40 }}</div>
+                  {% if task.is_overdue %}
+                  <small class="overdue-indicator">
+                    <i class="fas fa-circle-exclamation me-1"></i>Overdue
+                  </small>
+                  {% endif %}
+                </td>
+                <td style="color:#94a3b8;font-size:0.85rem;">
+                  {{ task.assigned_to.username|default:"Unassigned" }}
+                </td>
+                <td>
+                  <span class="badge-status badge-{{ task.priority }}">
+                    {{ task.get_priority_display }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge-status badge-{{ task.status }}">
+                    {{ task.get_status_display }}
+                  </span>
+                </td>
+                <td style="font-size:0.82rem;color:#94a3b8;">
+                  {% if task.deadline %}{{ task.deadline|date:"M d, Y" }}{% else %}-{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-2x mb-3" style="color:#334155;"></i>
+          <p style="color:#64748b;">No tasks yet.</p>
+          {% if profile.is_admin %}
+          <a href="{% url 'task_create' %}" class="btn btn-primary btn-sm">Create First Task</a>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="fas fa-clock-rotate-left me-2" style="color:#818cf8;"></i>Activity Log
+      </div>
+      <div class="card-body" style="overflow-y:auto;max-height:380px;">
+        {% if recent_logs %}
+        {% for log in recent_logs %}
+        <div class="audit-item">
+          <div class="audit-dot"></div>
+          <div>
+            <div style="font-size:0.82rem;font-weight:500;">{{ log.task.title|truncatechars:30 }}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">{{ log.get_action_display }} by {{ log.user.username }}</div>
+            {% if log.detail %}
+            <div style="font-size:0.72rem;color:#64748b;">{{ log.detail }}</div>
+            {% endif %}
+            <div style="font-size:0.7rem;color:#475569;margin-top:2px;">{{ log.timestamp|timesince }} ago</div>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center py-4" style="color:#64748b;font-size:0.85rem;">No activity yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if total > 0 %}
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span style="font-size:0.85rem;font-weight:600;">Overall Progress</span>
+          <span style="font-size:0.85rem;color:#94a3b8;">{{ completed }}/{{ total }} completed</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" id="dash-progress" data-completed="{{ completed }}" data-total="{{ total }}"></div>
+        </div>
+        <div class="d-flex gap-4 mt-3" style="font-size:0.78rem;">
+          <span><span style="color:#94a3b8;">&#9679;</span> Pending: {{ pending }}</span>
+          <span><span style="color:#60a5fa;">&#9679;</span> In Progress: {{ in_progress }}</span>
+          <span><span style="color:#34d399;">&#9679;</span> Completed: {{ completed }}</span>
+          <span><span style="color:#f87171;">&#9679;</span> Overdue: {{ overdue }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  var bar = document.getElementById('dash-progress');
+  if (bar) {
+    var c = parseInt(bar.getAttribute('data-completed'), 10) || 0;
+    var t = parseInt(bar.getAttribute('data-total'), 10) || 0;
+    if (t > 0) { bar.style.width = Math.round((c / t) * 100) + '%'; }
+  }
+  document.querySelectorAll('.task-row').forEach(function (row) {
+    row.addEventListener('click', function () {
+      window.location = row.getAttribute('data-href');
+    });
+  });
+</script>
+{% endblock %}

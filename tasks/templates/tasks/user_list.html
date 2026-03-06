@@ -1,0 +1,97 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Users - TaskFlow{% endblock %}
+{% block page_title %}User Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.avatar-sm { width:32px; height:32px; font-size:0.78rem; border-radius:8px; background:linear-gradient(135deg,#6366f1,#818cf8); display:inline-flex; align-items:center; justify-content:center; color:white; font-weight:700; flex-shrink:0; }
+.rate-bar-outer { height:6px; min-width:70px; flex:1; background:#1e293b; border-radius:20px; overflow:hidden; }
+.rate-bar-inner { height:100%; border-radius:20px; background:linear-gradient(90deg,#6366f1,#818cf8); width:0%; }
+</style>
+{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'user_create' %}" class="btn btn-primary btn-sm">
+  <i class="fas fa-plus me-1"></i> Add User
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="fas fa-users me-2" style="color:#818cf8;"></i>All Users ({{ user_data|length }})</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Role</th>
+          <th>Department</th>
+          <th>Total</th>
+          <th>Completed</th>
+          <th>Pending</th>
+          <th>Completion Rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in user_data %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="avatar-sm">{{ item.user.username|first|upper }}</div>
+              <div>
+                <div style="font-weight:500;font-size:0.875rem;">{{ item.user.get_full_name|default:item.user.username }}</div>
+                <div style="font-size:0.75rem;color:#64748b;">{{ item.user.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if item.profile.role == 'admin' %}
+            <span class="badge-status badge-critical">Admin</span>
+            {% else %}
+            <span class="badge-status badge-in_progress">User</span>
+            {% endif %}
+          </td>
+          <td style="color:#94a3b8;font-size:0.85rem;">{{ item.profile.department|default:"-" }}</td>
+          <td style="font-weight:600;">{{ item.total }}</td>
+          <td><span class="badge-status badge-completed">{{ item.completed }}</span></td>
+          <td><span class="badge-status badge-pending">{{ item.pending }}</span></td>
+          <td>
+            {% if item.total > 0 %}
+            <div class="d-flex align-items-center gap-2">
+              <div class="rate-bar-outer">
+                <div class="rate-bar-inner user-bar" data-completed="{{ item.completed }}" data-total="{{ item.total }}"></div>
+              </div>
+              <span class="user-pct" style="font-size:0.75rem;color:#94a3b8;min-width:32px;"></span>
+            </div>
+            {% else %}
+            <span style="color:#475569;font-size:0.82rem;">No tasks</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-5" style="color:#64748b;">
+            <i class="fas fa-users fa-2x d-block mb-3" style="color:#334155;"></i>No users found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.querySelectorAll('.user-bar').forEach(function(bar) {
+    var c = parseInt(bar.getAttribute('data-completed'), 10) || 0;
+    var t = parseInt(bar.getAttribute('data-total'), 10) || 0;
+    var pct = t > 0 ? Math.round((c / t) * 100) : 0;
+    bar.style.width = pct + '%';
+    var lbl = bar.closest('td').querySelector('.user-pct');
+    if (lbl) { lbl.textContent = pct + '%'; }
+  });
+</script>
+{% endblock %}

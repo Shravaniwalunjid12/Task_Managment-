@@ -1,0 +1,221 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Analytics - TaskFlow{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+
+{% block content %}
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(99,102,241,0.15);">
+        <i class="fas fa-chart-pie" style="color:#818cf8;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ total_tasks }}</div>
+        <div class="stat-label">Total Tasks</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(16,185,129,0.15);">
+        <i class="fas fa-percent" style="color:#34d399;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ completion_rate }}%</div>
+        <div class="stat-label">Completion Rate</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(239,68,68,0.15);">
+        <i class="fas fa-triangle-exclamation" style="color:#f87171;"></i>
+      </div>
+      <div>
+        <div class="stat-value">{{ overdue_count }}</div>
+        <div class="stat-label">Overdue Tasks</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="fas fa-circle-half-stroke me-2" style="color:#818cf8;"></i>Status Distribution
+      </div>
+      <div class="card-body d-flex align-items-center justify-content-center">
+        <canvas id="statusChart" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="fas fa-chart-bar me-2" style="color:#818cf8;"></i>Priority Distribution
+      </div>
+      <div class="card-body">
+        <canvas id="priorityChart" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <i class="fas fa-chart-line me-2" style="color:#818cf8;"></i>Monthly Completion Trend
+  </div>
+  <div class="card-body">
+    <canvas id="trendChart" height="120"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <i class="fas fa-users me-2" style="color:#818cf8;"></i>User Performance
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>User</th><th>Total</th><th>Completed</th><th>In Progress</th><th>Pending</th><th>Rate</th>
+        </tr>
+      </thead>
+      <tbody id="userTableBody">
+        <tr><td colspan="6" class="text-center py-4" style="color:#64748b;">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script id="data-status" type="application/json">{{ status_data }}</script>
+<script id="data-priority" type="application/json">{{ priority_data }}</script>
+<script id="data-monthly" type="application/json">{{ monthly }}</script>
+<script id="data-users" type="application/json">{{ user_stats }}</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  function readJson(id) {
+    try {
+      var el = document.getElementById(id);
+      return el ? JSON.parse(el.textContent) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  var statusData   = readJson('data-status');
+  var priorityData = readJson('data-priority');
+  var monthly      = readJson('data-monthly');
+  var userStats    = readJson('data-users');
+  var lc = '#94a3b8';
+  var gc = '#334155';
+  var ft = { family: 'Sora', size: 12 };
+
+  var statusCtx = document.getElementById('statusChart');
+  if (statusCtx) {
+    new Chart(statusCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Pending', 'In Progress', 'Completed', 'On Hold'],
+        datasets: [{
+          data: [statusData.pending || 0, statusData.in_progress || 0, statusData.completed || 0, statusData.on_hold || 0],
+          backgroundColor: ['#64748b', '#3b82f6', '#10b981', '#f59e0b'],
+          borderWidth: 0,
+          hoverOffset: 8
+        }]
+      },
+      options: {
+        cutout: '65%',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { position: 'bottom', labels: { color: lc, font: ft, padding: 16 } }
+        }
+      }
+    });
+  }
+
+  var priorityCtx = document.getElementById('priorityChart');
+  if (priorityCtx) {
+    new Chart(priorityCtx, {
+      type: 'bar',
+      data: {
+        labels: ['Low', 'Medium', 'High', 'Critical'],
+        datasets: [{
+          label: 'Tasks',
+          data: [priorityData.low || 0, priorityData.medium || 0, priorityData.high || 0, priorityData.critical || 0],
+          backgroundColor: ['#10b981', '#f59e0b', '#e67e22', '#ef4444'],
+          borderRadius: 8,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: lc, font: ft }, grid: { color: '#1e293b' } },
+          y: { ticks: { color: lc, font: ft }, grid: { color: gc }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  var trendCtx = document.getElementById('trendChart');
+  if (trendCtx) {
+    var tl = Array.isArray(monthly) && monthly.length > 0 ? monthly.map(function(m){ return m.month; }) : ['No data'];
+    var tv = Array.isArray(monthly) && monthly.length > 0 ? monthly.map(function(m){ return m.count; }) : [0];
+    new Chart(trendCtx, {
+      type: 'line',
+      data: {
+        labels: tl,
+        datasets: [{
+          label: 'Completed Tasks',
+          data: tv,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99,102,241,0.12)',
+          fill: true,
+          tension: 0.4,
+          pointBackgroundColor: '#818cf8',
+          pointRadius: 5,
+          pointHoverRadius: 7
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { labels: { color: lc, font: ft } } },
+        scales: {
+          x: { ticks: { color: lc, font: ft }, grid: { color: gc } },
+          y: { ticks: { color: lc, font: ft }, grid: { color: gc }, beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  var tbody = document.getElementById('userTableBody');
+  if (tbody && Array.isArray(userStats) && userStats.length > 0) {
+    tbody.innerHTML = userStats.map(function(u) {
+      var rate = u.total > 0 ? Math.round((u.completed / u.total) * 100) : 0;
+      return '<tr>'
+        + '<td style="font-weight:500;">' + u.name + '</td>'
+        + '<td>' + u.total + '</td>'
+        + '<td><span class="badge-status badge-completed">' + u.completed + '</span></td>'
+        + '<td><span class="badge-status badge-in_progress">' + u.in_progress + '</span></td>'
+        + '<td><span class="badge-status badge-pending">' + u.pending + '</span></td>'
+        + '<td><div style="display:flex;align-items:center;gap:8px;">'
+        + '<div class="progress" style="flex:1;height:6px;"><div class="progress-bar" style="width:' + rate + '%;"></div></div>'
+        + '<span style="font-size:0.78rem;color:#94a3b8;min-width:36px;">' + rate + '%</span></div></td>'
+        + '</tr>';
+    }).join('');
+  } else if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4" style="color:#64748b;">No data available.</td></tr>';
+  }
+</script>
+{% endblock %}

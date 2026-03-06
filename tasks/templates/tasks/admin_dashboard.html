@@ -1,0 +1,203 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Admin Dashboard - TaskFlow{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'task_create' %}" class="btn btn-primary btn-sm"><i class="fas fa-plus me-1"></i> New Task</a>
+<a href="{% url 'user_create' %}" class="btn btn-outline-light btn-sm"><i class="fas fa-user-plus me-1"></i> Add User</a>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.welcome-banner {
+  background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(129,140,248,0.08));
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+}
+.welcome-text h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+.welcome-text p  { color: #94a3b8; font-size: 0.85rem; margin: 0; }
+.role-badge { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); border-radius: 10px; padding: 8px 18px; color: #fbbf24; font-size: 0.82rem; font-weight: 700; }
+.task-row { cursor: pointer; } .task-row:hover td { background: rgba(99,102,241,0.05); }
+.user-perf-card { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; }
+.u-av { width: 36px; height: 36px; border-radius: 9px; background: linear-gradient(135deg,#6366f1,#818cf8); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.82rem; color:white; flex-shrink:0; }
+.mini-progress { height: 4px; background: #334155; border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.mini-bar { height: 100%; background: linear-gradient(90deg,#6366f1,#818cf8); border-radius: 4px; }
+.qaction { display:flex; align-items:center; gap:10px; padding:14px 16px; background:#0f172a; border:1px solid #334155; border-radius:12px; color:#e2e8f0; text-decoration:none; font-size:0.85rem; font-weight:600; transition:all 0.2s; flex:1; min-width:140px; }
+.qaction:hover { border-color:#6366f1; color:#818cf8; background:rgba(99,102,241,0.06); }
+.qaction i { font-size:1.1rem; width:24px; text-align:center; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Welcome -->
+<div class="welcome-banner">
+  <div class="welcome-text">
+    <h2>👑 Welcome back, {{ request.user.first_name|default:request.user.username }}!</h2>
+    <p>Full system overview — all tasks, users and activity across TaskFlow.</p>
+  </div>
+  <div class="role-badge"><i class="fas fa-crown me-2"></i>Admin Access</div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(99,102,241,0.15);"><i class="fas fa-list-check" style="color:#818cf8;"></i></div><div><div class="stat-value">{{ total }}</div><div class="stat-label">Total Tasks</div></div></div></div>
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(100,116,139,0.15);"><i class="fas fa-clock" style="color:#94a3b8;"></i></div><div><div class="stat-value">{{ pending }}</div><div class="stat-label">Pending</div></div></div></div>
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(59,130,246,0.15);"><i class="fas fa-spinner" style="color:#60a5fa;"></i></div><div><div class="stat-value">{{ in_progress }}</div><div class="stat-label">In Progress</div></div></div></div>
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(16,185,129,0.15);"><i class="fas fa-circle-check" style="color:#34d399;"></i></div><div><div class="stat-value">{{ completed }}</div><div class="stat-label">Completed</div></div></div></div>
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(239,68,68,0.15);"><i class="fas fa-triangle-exclamation" style="color:#f87171;"></i></div><div><div class="stat-value">{{ overdue }}</div><div class="stat-label">Overdue</div></div></div></div>
+  <div class="col-6 col-md-4 col-lg-2"><div class="stat-card"><div class="stat-icon" style="background:rgba(245,158,11,0.15);"><i class="fas fa-users" style="color:#fbbf24;"></i></div><div><div class="stat-value">{{ total_users }}</div><div class="stat-label">Total Users</div></div></div></div>
+</div>
+
+<!-- Progress Bar -->
+{% if total > 0 %}
+<div class="card mb-4"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <span style="font-size:0.85rem;font-weight:600;">Overall Completion</span>
+    <span style="font-size:0.85rem;color:#94a3b8;">{{ completion_rate }}% &mdash; {{ completed }}/{{ total }} tasks done</span>
+  </div>
+  <div class="progress"><div class="progress-bar" id="admin-bar" data-c="{{ completed }}" data-t="{{ total }}"></div></div>
+  <div class="d-flex gap-4 mt-3 flex-wrap" style="font-size:0.78rem;">
+    <span><span style="color:#94a3b8;">●</span> Pending: {{ pending }}</span>
+    <span><span style="color:#60a5fa;">●</span> In Progress: {{ in_progress }}</span>
+    <span><span style="color:#34d399;">●</span> Completed: {{ completed }}</span>
+    <span><span style="color:#f59e0b;">●</span> On Hold: {{ on_hold }}</span>
+    <span><span style="color:#f87171;">●</span> Overdue: {{ overdue }}</span>
+  </div>
+</div></div>
+{% endif %}
+
+<!-- Main grid -->
+<div class="row g-4">
+
+  <!-- Recent Tasks -->
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-list-check me-2" style="color:#818cf8;"></i>Recent Tasks</span>
+        <div class="d-flex gap-2">
+          <a href="{% url 'task_create' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>New</a>
+          <a href="{% url 'task_list' %}" class="btn btn-sm btn-outline-light">View All</a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_tasks %}
+        <div class="table-responsive"><table class="table mb-0">
+          <thead><tr><th>Title</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Deadline</th></tr></thead>
+          <tbody>
+            {% for task in recent_tasks %}
+            <tr class="task-row" data-href="{% url 'task_detail' task.pk %}" style="cursor:pointer;">
+              <td>
+                <div style="font-weight:500;">{{ task.title|truncatechars:36 }}</div>
+                {% if task.is_overdue %}<small class="overdue-indicator"><i class="fas fa-circle-exclamation me-1"></i>Overdue</small>{% endif %}
+              </td>
+              <td style="color:#94a3b8;font-size:0.82rem;">{{ task.assigned_to.get_full_name|default:task.assigned_to.username|default:"Unassigned" }}</td>
+              <td><span class="badge-status badge-{{ task.priority }}">{{ task.get_priority_display }}</span></td>
+              <td><span class="badge-status badge-{{ task.status }}">{{ task.get_status_display }}</span></td>
+              <td style="font-size:0.8rem;color:#94a3b8;">{% if task.deadline %}{{ task.deadline|date:"M d, Y" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table></div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-2x mb-3" style="color:#334155;"></i>
+          <p style="color:#64748b;">No tasks yet.</p>
+          <a href="{% url 'task_create' %}" class="btn btn-primary btn-sm">Create First Task</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column -->
+  <div class="col-lg-4">
+
+    <!-- User Performance -->
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-users me-2" style="color:#818cf8;"></i>User Performance</span>
+        <a href="{% url 'user_list' %}" class="btn btn-sm btn-outline-light">Manage</a>
+      </div>
+      <div class="card-body" style="max-height:270px;overflow-y:auto;">
+        {% for u in user_summary %}
+        <div class="user-perf-card">
+          <div class="u-av">{{ u.user.username|first|upper }}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ u.user.get_full_name|default:u.user.username }}</div>
+            <div style="font-size:0.72rem;color:#64748b;">{{ u.completed }}/{{ u.total }} completed</div>
+            <div class="mini-progress"><div class="mini-bar user-mini-bar" data-completed="{{ u.completed }}" data-total="{{ u.total }}"></div></div>
+          </div>
+          <div class="user-mini-pct" style="font-size:0.78rem;color:#818cf8;font-weight:700;flex-shrink:0;"></div>
+        </div>
+        {% empty %}
+        <p style="color:#64748b;font-size:0.85rem;text-align:center;padding:16px 0;">No users with assigned tasks yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-clock-rotate-left me-2" style="color:#818cf8;"></i>Recent Activity</div>
+      <div class="card-body" style="max-height:230px;overflow-y:auto;">
+        {% for log in recent_logs %}
+        <div class="audit-item">
+          <div class="audit-dot"></div>
+          <div>
+            <div style="font-size:0.8rem;font-weight:500;">{{ log.task.title|truncatechars:30 }}</div>
+            <div style="font-size:0.74rem;color:#94a3b8;">{{ log.get_action_display }} by {{ log.user.username }}</div>
+            <div style="font-size:0.7rem;color:#475569;">{{ log.timestamp|timesince }} ago</div>
+          </div>
+        </div>
+        {% empty %}
+        <p style="color:#64748b;font-size:0.85rem;text-align:center;padding:16px 0;">No activity yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card mt-4"><div class="card-body">
+  <div style="font-size:0.85rem;font-weight:600;margin-bottom:14px;"><i class="fas fa-bolt me-2" style="color:#818cf8;"></i>Quick Actions</div>
+  <div class="d-flex gap-3 flex-wrap">
+    <a href="{% url 'task_create' %}" class="qaction"><i class="fas fa-plus" style="color:#818cf8;"></i> Create Task</a>
+    <a href="{% url 'user_create' %}" class="qaction"><i class="fas fa-user-plus" style="color:#34d399;"></i> Add User</a>
+    <a href="{% url 'analytics' %}" class="qaction"><i class="fas fa-chart-pie" style="color:#60a5fa;"></i> Analytics</a>
+    <a href="{% url 'reports' %}" class="qaction"><i class="fas fa-file-lines" style="color:#fbbf24;"></i> Reports</a>
+    <a href="{% url 'tag_list' %}" class="qaction"><i class="fas fa-tags" style="color:#f87171;"></i> Tags</a>
+  </div>
+</div></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Progress bar - overall completion
+  var b = document.getElementById('admin-bar');
+  if (b) {
+    var c = parseInt(b.getAttribute('data-c')) || 0;
+    var t = parseInt(b.getAttribute('data-t')) || 0;
+    if (t > 0) b.style.width = Math.round(c / t * 100) + '%';
+  }
+
+  // Clickable task rows (using data-href instead of inline onclick)
+  document.querySelectorAll('.task-row[data-href]').forEach(function(row) {
+    row.addEventListener('click', function() {
+      window.location = row.getAttribute('data-href');
+    });
+  });
+
+  // User performance mini-bars
+  document.querySelectorAll('.user-mini-bar').forEach(function(bar) {
+    var c = parseInt(bar.getAttribute('data-completed')) || 0;
+    var t = parseInt(bar.getAttribute('data-total')) || 0;
+    var pct = t > 0 ? Math.round(c / t * 100) : 0;
+    bar.style.width = pct + '%';
+    var label = bar.closest('.user-perf-card').querySelector('.user-mini-pct');
+    if (label) label.textContent = pct + '%';
+  });
+</script>
+{% endblock %}
